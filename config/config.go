@@ -1,8 +1,12 @@
 package config
 
-// TODO: Add imports when implementing
-// "os"
-// "github.com/joho/godotenv"
+import (
+	"fmt"
+	"os"
+	"strconv"
+
+	"github.com/joho/godotenv"
+)
 
 // Config holds all application configuration
 type Config struct {
@@ -44,24 +48,100 @@ type JWTConfig struct {
 }
 
 // Load reads configuration from environment variables
-// It should:
-// 1. Load .env file if it exists (using godotenv)
-// 2. Read environment variables
-// 3. Set default values for development
-// 4. Return Config struct with all settings
+// It loads .env file if it exists, reads environment variables,
+// and sets default values for development
 func Load() *Config {
-	// TODO: Implement configuration loading
-	// - Load .env file
-	// - Read DB_TYPE, DB_PATH, SERVER_PORT, JWT_SECRET, etc.
-	// - Return populated Config struct
-	return nil
+	// Load .env file (ignore error if file doesn't exist)
+	_ = godotenv.Load()
+
+	// Get environment (default: development)
+	env := os.Getenv("APP_ENV")
+	if env == "" {
+		env = "development"
+	}
+
+	// Get server port (default: 8080)
+	serverPort := os.Getenv("SERVER_PORT")
+	if serverPort == "" {
+		serverPort = "8080"
+	}
+
+	// Get server host (default: localhost)
+	serverHost := os.Getenv("SERVER_HOST")
+	if serverHost == "" {
+		serverHost = "localhost"
+	}
+
+	// Get database type (default: sqlite)
+	dbType := os.Getenv("DB_TYPE")
+	if dbType == "" {
+		dbType = "sqlite"
+	}
+
+	// Get database path (default: ./lottery.db)
+	dbPath := os.Getenv("DB_PATH")
+	if dbPath == "" {
+		dbPath = "./lottery.db"
+	}
+
+	// Get JWT secret (default: empty, should be set in production)
+	jwtSecret := os.Getenv("JWT_SECRET")
+
+	// Get JWT expiration (default: 24 hours)
+	jwtExpiration := 24
+	if expStr := os.Getenv("JWT_EXPIRATION_HOURS"); expStr != "" {
+		if exp, err := strconv.Atoi(expStr); err == nil {
+			jwtExpiration = exp
+		}
+	}
+
+	// PostgreSQL configuration (only used if DB_TYPE=postgres)
+	dbConfig := DatabaseConfig{
+		Type:     dbType,
+		Path:     dbPath,
+		Host:     os.Getenv("DB_HOST"),
+		Port:     os.Getenv("DB_PORT"),
+		User:     os.Getenv("DB_USER"),
+		Password: os.Getenv("DB_PASSWORD"),
+		DBName:   os.Getenv("DB_NAME"),
+		SSLMode:  getEnvOrDefault("DB_SSLMODE", "disable"),
+	}
+
+	return &Config{
+		ServerPort:  serverPort,
+		ServerHost:  serverHost,
+		Database:    dbConfig,
+		Environment: env,
+		JWT: JWTConfig{
+			Secret:     jwtSecret,
+			Expiration: jwtExpiration,
+		},
+	}
 }
 
 // GetDatabaseDSN returns the database connection string
 // based on the database type (SQLite or PostgreSQL)
 func (c *Config) GetDatabaseDSN() string {
-	// TODO: Implement DSN generation
-	// - For SQLite: return file path
-	// - For PostgreSQL: return connection string like "host=... port=... user=... password=... dbname=... sslmode=..."
-	return ""
+	if c.Database.Type == "postgres" {
+		// PostgreSQL connection string
+		return fmt.Sprintf(
+			"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+			c.Database.Host,
+			c.Database.Port,
+			c.Database.User,
+			c.Database.Password,
+			c.Database.DBName,
+			c.Database.SSLMode,
+		)
+	}
+	// SQLite connection string (just the file path)
+	return c.Database.Path
+}
+
+// getEnvOrDefault returns the environment variable value or a default if not set
+func getEnvOrDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
