@@ -43,8 +43,9 @@ type DatabaseConfig struct {
 
 // JWTConfig holds JWT authentication settings
 type JWTConfig struct {
-	Secret     string // Secret key for signing tokens
-	Expiration int    // Token expiration time in hours
+	Secret                string // Secret key for signing tokens
+	AccessExpirationMin   int    // Access token expiration in minutes
+	RefreshExpirationDays int    // Refresh token expiration in days
 }
 
 // Load reads configuration from environment variables
@@ -87,11 +88,19 @@ func Load() *Config {
 	// Get JWT secret (default: empty, should be set in production)
 	jwtSecret := os.Getenv("JWT_SECRET")
 
-	// Get JWT expiration (default: 24 hours)
-	jwtExpiration := 24
-	if expStr := os.Getenv("JWT_EXPIRATION_HOURS"); expStr != "" {
+	// Get JWT access token expiration (default: 15 minutes)
+	accessExpirationMin := 15
+	if expStr := os.Getenv("JWT_ACCESS_EXPIRATION_MINUTES"); expStr != "" {
 		if exp, err := strconv.Atoi(expStr); err == nil {
-			jwtExpiration = exp
+			accessExpirationMin = exp
+		}
+	}
+
+	// Get JWT refresh token expiration (default: 7 days)
+	refreshExpirationDays := 7
+	if expStr := os.Getenv("JWT_REFRESH_EXPIRATION_DAYS"); expStr != "" {
+		if exp, err := strconv.Atoi(expStr); err == nil {
+			refreshExpirationDays = exp
 		}
 	}
 
@@ -113,8 +122,9 @@ func Load() *Config {
 		Database:    dbConfig,
 		Environment: env,
 		JWT: JWTConfig{
-			Secret:     jwtSecret,
-			Expiration: jwtExpiration,
+			Secret:                jwtSecret,
+			AccessExpirationMin:   accessExpirationMin,
+			RefreshExpirationDays: refreshExpirationDays,
 		},
 	}
 }

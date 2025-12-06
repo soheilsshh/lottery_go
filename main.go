@@ -3,11 +3,12 @@ package main
 import (
 	"log"
 
-	"github.com/gin-gonic/gin"
+	"lottery/internal/entities"
+	"lottery/internal/routes"
+	"lottery/pkg/database"
+
 	"github.com/joho/godotenv"
 	"golang.org/x/crypto/bcrypt"
-	"lottery/internal/entities"
-	"lottery/pkg/database"
 )
 
 func main() {
@@ -15,31 +16,21 @@ func main() {
 		log.Println("Warning: .env file not found, using default values")
 	}
 
-
 	database.Connect()
-
 
 	if err := database.DB.AutoMigrate(
 		&entities.User{},
 		&entities.Draw{},
 		&entities.DrawEntry{},
+		&entities.RefreshToken{},
 	); err != nil {
 		log.Fatal("Error running migrations: ", err)
 	}
 
-
 	seedAdminUser()
 
-	// Setup Gin server
-	router := gin.Default()
-
-
-	router.GET("/", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"message": "Lottery API is running!",
-		})
-	})
-
+	// Setup router with all routes
+	router := routes.SetupRouter()
 
 	// Start server on port 8080
 	log.Println("Server is running on port 8000...")
@@ -48,7 +39,6 @@ func main() {
 	}
 }
 
-
 // seedAdminUser creates admin user if it doesn't exist
 func seedAdminUser() {
 
@@ -56,19 +46,16 @@ func seedAdminUser() {
 	var existingUser entities.User
 	result := database.DB.Where("email = ?", "admin@lottery.com").First(&existingUser)
 
-
 	// If user exists, no need to create
 	if result.Error == nil {
 		log.Println("Admin user already exists")
 		return
 	}
 
-
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte("123456"), bcrypt.DefaultCost)
 	if err != nil {
 		log.Fatal("Error hashing password: ", err)
 	}
-
 
 	// Create admin user
 	adminUser := entities.User{
