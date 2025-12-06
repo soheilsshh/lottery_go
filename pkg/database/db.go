@@ -3,8 +3,8 @@ package database
 import (
 	"os"
 
+	"github.com/glebarez/sqlite"
 	"github.com/joho/godotenv"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -31,12 +31,12 @@ func Connect() {
 		dbPath = "./lottery.db"
 	}
 
-	// اتصال به SQLite
-	// Connect to SQLite
+	// اتصال به SQLite با استفاده از درایور pure Go (بدون نیاز به CGO)
+	// Connect to SQLite using pure Go driver (no CGO required)
 	var err error
 	DB, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	if err != nil {
-		panic("خطا در اتصال به دیتابیس: " + err.Error())
+		panic("error database connection: " + err.Error())
 	}
 
 	// تنظیمات connection pool (اختیاری برای SQLite)
@@ -48,6 +48,5 @@ func Connect() {
 
 	// تنظیم حداکثر تعداد اتصالات باز
 	// Set maximum number of open connections
-	sqlDB.SetMaxOpenConns(1) // SQLite فقط یک اتصال همزمان
 	sqlDB.SetMaxIdleConns(1) // SQLite only supports one concurrent connection
 }
